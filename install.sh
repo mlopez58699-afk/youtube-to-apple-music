@@ -133,3 +133,100 @@ else
 
     status_ok "Deno installed"
 fi
+
+#########################################
+# Install Application Files
+#########################################
+
+status_info "Installing application files..."
+
+mkdir -p "$APP_DIR"
+
+cp src/ytmusic.py "$APP_DIR/"
+cp src/music_import.applescript "$APP_DIR/"
+cp VERSION "$APP_DIR/"
+
+status_ok "Application files installed"
+
+
+#########################################
+# Install Command
+#########################################
+
+status_info "Installing ytmusic command..."
+
+mkdir -p "$BIN_DIR"
+
+cat > "$BIN_DIR/ytmusic" << EOF
+#!/bin/bash
+
+python3 "$APP_DIR/ytmusic.py" "\$@"
+EOF
+
+chmod +x "$BIN_DIR/ytmusic"
+
+status_ok "ytmusic command installed"
+
+#########################################
+# Ensure PATH
+#########################################
+
+status_info "Checking PATH..."
+
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null; then
+        echo '' >> "$HOME/.zshrc"
+        echo '# Added by YouTube to Apple Music installer' >> "$HOME/.zshrc"
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
+    fi
+
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+
+status_ok "PATH configured"
+
+
+#########################################
+# Verify Installation
+#########################################
+
+status_info "Verifying installation..."
+
+if [[ ! -f "$APP_DIR/ytmusic.py" ]]; then
+    status_fail "ytmusic.py is missing."
+    exit 1
+fi
+
+if [[ ! -f "$APP_DIR/music_import.applescript" ]]; then
+    status_fail "music_import.applescript is missing."
+    exit 1
+fi
+
+if [[ ! -x "$BIN_DIR/ytmusic" ]]; then
+    status_fail "ytmusic command is missing."
+    exit 1
+fi
+
+status_ok "Installation verified"
+
+
+#########################################
+# Finish
+#########################################
+
+echo
+echo "=========================================="
+echo " Installation Complete!"
+echo "=========================================="
+echo
+echo "Version: $VERSION"
+echo
+echo "Run:"
+echo
+echo '    ytmusic "https://youtube.com/playlist?list=..."'
+echo
+echo "If this is your first installation, restart Terminal"
+echo "or run:"
+echo
+echo "    source ~/.zshrc"
+echo
