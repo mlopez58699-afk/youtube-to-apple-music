@@ -80,9 +80,11 @@ with open(playlist_json, "w", encoding="utf-8") as f:
 
 print("Sending to Apple Music...")
 
+script_path = Path(__file__).parent / "music_import.applescript"
+
 result = subprocess.run([
     "osascript",
-    str(Path.home() / "Scripts" / "music_import.applescript"),
+    str(script_path),
     str(playlist_json)
 ])
 
