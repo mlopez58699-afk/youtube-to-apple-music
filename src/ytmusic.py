@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from mutagen import File
 
+from matcher import load_library, find_best_match
+
 if len(sys.argv) != 2:
     print("Usage: ytmusic.py <YouTube playlist URL>")
     sys.exit(1)
@@ -13,6 +15,13 @@ if len(sys.argv) != 2:
 url = sys.argv[1]
 
 download_folder = Path.home() / "Downloads"
+
+print("Loading Apple Music library...")
+
+library = load_library()
+
+print(f"Found {len(library)} tracks in Apple Music.")
+print()
 
 print("Downloading playlist...")
 
