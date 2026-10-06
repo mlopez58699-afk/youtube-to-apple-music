@@ -17,7 +17,7 @@ download_folder = Path.home() / "Downloads"
 print("Downloading playlist...")
 
 # Download playlist as ordered MP3 files
-subprocess.run([
+result = subprocess.run([
     "yt-dlp",
     "-f", "ba",
     "-x",
@@ -26,11 +26,16 @@ subprocess.run([
     "--add-metadata",
     "--embed-thumbnail",
     "--convert-thumbnails", "jpg",
+    "--ignore-errors",
     "-o",
     str(download_folder / "%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s"),
     url
-], check=True)
+])
 
+if result.returncode != 0:
+    print()
+    print("⚠ Some songs could not be downloaded.")
+    print("Continuing with the songs that were downloaded...")
 
 # Get playlist name from yt-dlp
 playlist_name = subprocess.check_output([
