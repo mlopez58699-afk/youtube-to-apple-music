@@ -5,6 +5,9 @@ import re
 from difflib import SequenceMatcher
 
 
+MATCH_THRESHOLD = 0.85
+
+
 def normalize(text):
     if not text:
         return ""
@@ -26,6 +29,7 @@ def normalize(text):
 
     return " ".join(text.split())
 
+
 def similarity(a, b):
     return SequenceMatcher(
         None,
@@ -35,6 +39,9 @@ def similarity(a, b):
 
 
 def split_artists(text):
+    if not text:
+        return set()
+
     text = text.lower()
 
     separators = [
@@ -70,7 +77,6 @@ def split_artists(text):
 
 
 def artist_overlap(a, b):
-
     a_artists = split_artists(a)
     b_artists = split_artists(b)
 
@@ -80,6 +86,7 @@ def artist_overlap(a, b):
     matches = a_artists.intersection(b_artists)
 
     return len(matches) / len(a_artists)
+
 
 def duration_score(a, b):
     try:
@@ -96,61 +103,58 @@ def duration_score(a, b):
 
         return 0
 
-    except:
+    except (TypeError, ValueError):
         return 0
 
 
-with open("apple_music_library.json", encoding="utf-8") as f:
-    library = json.load(f)
-
-test_song = {
-    "title": "Good Flirts",
-    "artist": "Baby Keem ft Kendrick Lamar",
-    "duration": "232"
-}
-
-best = None
-best_score = 0
+def load_library(path="apple_music_library.json"):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
-for song in library:
+def find_best_match(song, library, threshold=MATCH_THRESHOLD):
+    best = None
+    best_score = 0
 
-    title = similarity(
-        test_song["title"],
-        song["title"]
-    )
+    for library_song in library:
+        title = similarity(
+            song.get("title", ""),
+            library_song.get("title", "")
+        )
 
-    artist = artist_overlap(
-        test_song["artist"],
-        song["artist"]
-    )
+        artist = artist_overlap(
+            song.get("artist", ""),
+            library_song.get("artist", "")
+        )
 
-    duration = duration_score(
-        test_song["duration"],
-        song["duration"]
-    )
+        duration = duration_score(
+            song.get("duration"),
+            library_song.get("duration")
+        )
 
+        score = (
+            title * 0.5 +
+            artist * 0.3 +
+            duration * 0.2
+        )
 
-    score = (
-        title * .5 +
-        artist * .3 +
-        duration * .2
-    )
+        if score > best_score:
+            best_score = score
+            best = library_song
 
+    confidence = round(best_score * 100, 2)
+    matched = best is not None and best_score >= threshold
 
-    if score > best_score:
-        best_score = score
-        best = song
+    result = {
+        "matched": matched,
+        "confidence": confidence
+    }
 
-print("Best Match:")
-print(json.dumps(best, indent=2))
+    if best is not None:
+        result["track_id"] = best.get("id")
+        result["title"] = best.get("title")
+        result["artist"] = best.get("artist")
+        result["album"] = best.get("album")
+        result["duration"] = best.get("duration")
 
-print()
-print("Confidence:")
-print(round(best_score * 100, 2), "%")
-
-
-if best_score >= .85:
-    print("MATCH CONFIRMED")
-else:
-    print("NO SAFE MATCH")
+    return result
