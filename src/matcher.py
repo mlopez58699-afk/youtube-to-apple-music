@@ -30,11 +30,46 @@ def normalize(text):
     return " ".join(text.split())
 
 
-def similarity(a, b):
+
+
+
+def clean_song_title(title, artist=""):
+    if not title:
+        return ""
+
+    title = title.lower().strip()
+
+    # Remove common promotional labels, but preserve
+    # remix, live, acoustic, and other version information.
+    title = re.sub(
+        r"\s*[\(\[]\s*(official\s+)?"
+        r"(audio|video|music video|lyric video|lyrics)"
+        r"\s*[\)\]]",
+        "",
+        title,
+        flags=re.IGNORECASE
+    )
+
+    # Remove an artist prefix only when it matches
+    # the actual artist.
+    if artist:
+        artist_name = artist.lower().strip()
+
+        for separator in [" - ", " – ", " — "]:
+            prefix = artist_name + separator
+
+            if title.startswith(prefix):
+                title = title[len(prefix):].strip()
+                break
+
+    return normalize(title)
+
+
+def similarity(a, b, artist_a="", artist_b=""):
     return SequenceMatcher(
         None,
-        normalize(a),
-        normalize(b)
+        clean_song_title(a, artist_a),
+        clean_song_title(b, artist_b)
     ).ratio()
 
 
@@ -112,14 +147,38 @@ def load_library(path="apple_music_library.json"):
         return json.load(f)
 
 
+VERSION_PATTERNS = {
+    "live": r"\blive\b",
+    "remix": r"\bremix\b|\brework\b",
+    "acoustic": r"\bacoustic\b",
+    "instrumental": r"\binstrumental\b",
+    "karaoke": r"\bkaraoke\b",
+}
+
+
+def version_tags(title):
+    text = (title or "").lower()
+    return {
+        version
+        for version, pattern in VERSION_PATTERNS.items()
+        if re.search(pattern, text)
+    }
+
+
 def find_best_match(song, library, threshold=MATCH_THRESHOLD):
     best = None
     best_score = 0
 
     for library_song in library:
+        if version_tags(song.get("title", "")) != version_tags(
+            library_song.get("title", "")
+        ):
+            continue
         title = similarity(
             song.get("title", ""),
-            library_song.get("title", "")
+            library_song.get("title", ""),
+            song.get("artist", ""),
+            library_song.get("artist", "")
         )
 
         artist = artist_overlap(
