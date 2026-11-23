@@ -324,6 +324,8 @@ if missing_files:
         print("No changes were made to Apple Music.")
     sys.exit(1)
 
+folder.mkdir(parents=True, exist_ok=True)
+
 playlist_json = folder / "playlist.json"
 
 with open(playlist_json, "w", encoding="utf-8") as f:

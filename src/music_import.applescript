@@ -9,6 +9,22 @@ on run argv
     tell application "Music"
 
         activate
+        -- Check all songs before creating the playlist.
+        repeat with songRecord in songRecords
+            set songInfo to songRecord as text
+
+            if songInfo starts with "ID:" then
+                set trackID to text 4 thru -1 of songInfo
+                set existingTrack to first track of library playlist 1 whose persistent ID is trackID
+
+            else if songInfo starts with "FILE:" then
+                set filePath to text 6 thru -1 of songInfo
+                set fileAlias to (POSIX file filePath) as alias
+
+            else
+                error "Invalid song record: " & songInfo
+            end if
+        end repeat
 
         set newPlaylist to make new user playlist with properties {name:playlistName}
 
