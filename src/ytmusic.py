@@ -72,6 +72,21 @@ url = sys.argv[1]
 
 download_folder = Path.home() / "Downloads"
 
+print("Refreshing Apple Music library...")
+
+scanner_path = Path(__file__).parent / "library_scan.py"
+
+scan_result = subprocess.run(
+    [sys.executable, str(scanner_path)]
+)
+
+if scan_result.returncode != 0:
+    print()
+    print("ERROR: Apple Music library scan failed.")
+    print("No songs downloaded or imported.")
+    sys.exit(1)
+
+print()
 print("Loading Apple Music library...")
 
 library = load_library()
