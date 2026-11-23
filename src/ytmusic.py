@@ -222,7 +222,6 @@ if missing_positions:
         "--add-metadata",
         "--embed-thumbnail",
         "--convert-thumbnails", "jpg",
-        "--ignore-errors",
         "-o",
         str(download_folder / "%(playlist)s/%(playlist_index)02d - %(title)s [%(id)s].%(ext)s"),
         url
