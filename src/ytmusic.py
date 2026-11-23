@@ -121,6 +121,7 @@ for line in metadata_result.stdout.splitlines():
         "artist": artist,
         "duration": entry.get("duration"),
         "youtube_id": entry.get("id"),
+	"playlist_index": entry.get("playlist_index"),
         "url": entry.get("webpage_url"),
         "raw_title": raw_title
     })
@@ -176,9 +177,18 @@ if "--test-matches" in sys.argv:
     sys.exit(0)
 
 # Identify original playlist positions that need downloading.
+# Verify original playlist positions before downloading.
+for song in youtube_songs:
+    if song["download"]:
+        position = song.get("playlist_index")
+
+        if not isinstance(position, int) or position < 1:
+            print(f'ERROR: Invalid playlist position for {song["title"]}')
+            print("No songs downloaded or imported.")
+            sys.exit(1)
 missing_positions = [
-    str(index)
-    for index, song in enumerate(youtube_songs, start=1)
+    str(song["playlist_index"])
+    for song in youtube_songs
     if song["download"]
 ]
 
@@ -191,40 +201,42 @@ if missing_positions:
 else:
     playlist_items = ""
     print("All songs already exist in Apple Music.")
-    print("Skipping downloads.")
-
+    print("No downloads are needed.")
     print()
-    print("Playlist creation using existing tracks is not implemented yet.")
-    print("No changes were made to Apple Music.")
-    sys.exit(0)
 
 print()
 
 print()
 
-print("Downloading playlist...")
+if missing_positions:
+    print("Downloading playlist...")
 
-# Download playlist as ordered MP3 files
-result = subprocess.run([
-    "yt-dlp",
-    "--playlist-items", playlist_items,
-    "-f", "ba",
-    "-x",
-    "--audio-format", "mp3",
-    "--audio-quality", "0",
-    "--add-metadata",
-    "--embed-thumbnail",
-    "--convert-thumbnails", "jpg",
-    "--ignore-errors",
-    "-o",
-    str(download_folder / "%(playlist)s/%(playlist_index)02d - %(title)s [%(id)s].%(ext)s"),
-    url
-])
+    # Download playlist as ordered MP3 files
+    result = subprocess.run([
+        "yt-dlp",
+        "--playlist-items", playlist_items,
+        "-f", "ba",
+        "-x",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "--add-metadata",
+        "--embed-thumbnail",
+        "--convert-thumbnails", "jpg",
+        "--ignore-errors",
+        "-o",
+        str(download_folder / "%(playlist)s/%(playlist_index)02d - %(title)s [%(id)s].%(ext)s"),
+        url
+    ])
 
-if result.returncode != 0:
-    print()
-    print("⚠ Some songs could not be downloaded.")
-    print("Continuing with the songs that were downloaded...")
+    if result.returncode != 0:
+        print()
+        print("ERROR: The download process failed.")
+        print("Playlist creation cancelled.")
+        print("No changes were made to Apple Music.")
+        sys.exit(1)
+
+else:
+    print("Skipping downloader: all songs already exist.")
 
 # Get playlist name from yt-dlp
 playlist_name = subprocess.check_output([
