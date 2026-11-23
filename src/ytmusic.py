@@ -352,4 +352,7 @@ result = subprocess.run([
 if result.returncode == 0:
     print("Finished successfully!")
 else:
-    print("Apple Music import failed.")
+    print()
+    print("ERROR: Apple Music import failed.")
+    print("Check Apple Music for a partially created playlist.")
+    sys.exit(1)
