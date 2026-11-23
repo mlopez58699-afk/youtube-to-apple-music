@@ -61,7 +61,10 @@ def clean_youtube_title(title, artist=""):
 
     return " ".join(cleaned.split())
 
-if len(sys.argv) != 2:
+if len(sys.argv) not in (2, 3) or (
+    len(sys.argv) == 3 and sys.argv[2] != "--test-matches"
+):
+
     print("Usage: ytmusic.py <YouTube playlist URL>")
     sys.exit(1)
 
@@ -131,6 +134,46 @@ for song in youtube_songs:
         f'{song["artist"]} '
         f'({song["duration"]} sec)'
     )
+print("Checking Apple Music library...")
+
+matched_count = 0
+missing_count = 0
+
+for song in youtube_songs:
+    match = find_best_match(song, library)
+
+    song["matched"] = match["matched"]
+    song["confidence"] = match["confidence"]
+
+    if match["matched"] and match.get("track_id"):
+        song["apple_music_id"] = match["track_id"]
+        song["download"] = False
+
+        matched_count += 1
+
+        print(
+            f'✓ {song["title"]} — already in Apple Music '
+            f'({match["confidence"]}%)'
+        )
+
+    else:
+        song["apple_music_id"] = None
+        song["download"] = True
+
+        missing_count += 1
+
+        print(
+            f'↓ {song["title"]} — needs downloading'
+        )
+
+print()
+print(f"Already in Apple Music: {matched_count}")
+print(f"Need to download: {missing_count}")
+print()
+
+if "--test-matches" in sys.argv:
+    print("Test complete. No songs downloaded or imported.")
+    sys.exit(0)
 
 print()
 
