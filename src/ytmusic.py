@@ -217,7 +217,7 @@ result = subprocess.run([
     "--convert-thumbnails", "jpg",
     "--ignore-errors",
     "-o",
-    str(download_folder / "%(playlist)s/%(playlist_index)02d - %(title)s.%(ext)s"),
+    str(download_folder / "%(playlist)s/%(playlist_index)02d - %(title)s [%(id)s].%(ext)s"),
     url
 ])
 
