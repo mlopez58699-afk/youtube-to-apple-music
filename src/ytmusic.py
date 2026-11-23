@@ -175,6 +175,31 @@ if "--test-matches" in sys.argv:
     print("Test complete. No songs downloaded or imported.")
     sys.exit(0)
 
+# Identify original playlist positions that need downloading.
+missing_positions = [
+    str(index)
+    for index, song in enumerate(youtube_songs, start=1)
+    if song["download"]
+]
+
+print("Preparing selective download...")
+print(f"Songs requiring download: {len(missing_positions)}")
+
+if missing_positions:
+    playlist_items = ",".join(missing_positions)
+    print(f"YouTube playlist positions: {playlist_items}")
+else:
+    playlist_items = ""
+    print("All songs already exist in Apple Music.")
+    print("Skipping downloads.")
+
+    print()
+    print("Playlist creation using existing tracks is not implemented yet.")
+    print("No changes were made to Apple Music.")
+    sys.exit(0)
+
+print()
+
 print()
 
 print("Downloading playlist...")
@@ -182,6 +207,7 @@ print("Downloading playlist...")
 # Download playlist as ordered MP3 files
 result = subprocess.run([
     "yt-dlp",
+    "--playlist-items", playlist_items,
     "-f", "ba",
     "-x",
     "--audio-format", "mp3",
