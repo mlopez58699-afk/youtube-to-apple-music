@@ -243,20 +243,74 @@ print("Reading metadata from:")
 print(folder)
 
 
-files = sorted(folder.glob("*.mp3"))
+# Find only MP3 files belonging to the current YouTube playlist.
+files = []
 
+for song in youtube_songs:
+    if not song["download"]:
+        continue
+
+    youtube_id = song["youtube_id"]
+
+    matches = [
+        f for f in folder.glob("*.mp3")
+        if f.name.endswith(f"[{youtube_id}].mp3")
+    ]
+
+    if len(matches) == 1:
+        files.append(matches[0])
+    elif len(matches) == 0:
+        print(f'WARNING: No MP3 found for {song["title"]}')
+    else:
+        print(f'WARNING: Multiple MP3s found for {song["title"]}')
+
+# Build the playlist in its original YouTube order.
 songs = []
+missing_files = []
 
-for f in files:
+for song in youtube_songs:
+
+    if song["apple_music_id"]:
+        songs.append({
+            "title": song["title"],
+            "artist": song["artist"],
+            "apple_music_id": song["apple_music_id"],
+            "file": None
+        })
+        continue
+
+    youtube_id = song["youtube_id"]
+
+    matches = [
+        f for f in files
+        if f.name.endswith(f"[{youtube_id}].mp3")
+    ]
+
+    if len(matches) != 1:
+        missing_files.append(song["title"])
+        continue
+
+    f = matches[0]
     audio = File(f)
 
     songs.append({
         "file": str(f),
-        "title": str(audio.get("TIT2")[0]) if audio.get("TIT2") else f.stem,
-        "artist": str(audio.get("TPE1")[0]) if audio.get("TPE1") else "",
-        "album": str(audio.get("TALB")[0]) if audio.get("TALB") else ""
+        "apple_music_id": None,
+        "title": song["title"],
+        "artist": song["artist"],
+        "album": str(audio.get("TALB")[0])
+        if audio and audio.get("TALB") else ""
     })
 
+# Never import a partial playlist.
+if missing_files:
+    print()
+    print("ERROR: Playlist creation cancelled.")
+    print("Missing or ambiguous MP3 files:")
+    for title in missing_files:
+        print(f"  - {title}")
+        print("No changes were made to Apple Music.")
+    sys.exit(1)
 
 playlist_json = folder / "playlist.json"
 
