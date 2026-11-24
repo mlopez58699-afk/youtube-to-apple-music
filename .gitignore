@@ -3,3 +3,9 @@ __pycache__/
 .DS_Store
 playlist.json
 apple_music_library.json
+
+# Virtual environment
+.venv/
+
+# Local backup files
+*.backup
