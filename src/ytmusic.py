@@ -113,12 +113,19 @@ if metadata_result.returncode != 0:
     sys.exit(1)
 
 youtube_songs = []
+playlist_name = None
 
 for line in metadata_result.stdout.splitlines():
     if not line.strip():
         continue
 
     entry = json.loads(line)
+
+    if not playlist_name:
+        playlist_name = (
+            entry.get("playlist")
+            or entry.get("playlist_title")
+        )
 
     raw_title = entry.get("title", "")
     raw_artist = entry.get("artist")
@@ -141,6 +148,11 @@ for line in metadata_result.stdout.splitlines():
         "raw_title": raw_title
     })
 
+if not playlist_name or not youtube_songs:
+    print("ERROR: Could not identify the playlist or its songs.")
+    sys.exit(1)
+
+print(f"Playlist: {playlist_name}")
 print(f"Found {len(youtube_songs)} YouTube songs.")
 print()
 
@@ -252,15 +264,7 @@ if missing_positions:
 else:
     print("Skipping downloader: all songs already exist.")
 
-# Get playlist name from yt-dlp
-playlist_name = subprocess.check_output([
-    "yt-dlp",
-    "--print",
-    "%(playlist)s",
-    "--playlist-items",
-    "1",
-    url
-]).decode().strip()
+# Reuse the playlist name from the original metadata.
 
 
 folder = download_folder / playlist_name
