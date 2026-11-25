@@ -26,7 +26,21 @@ on run argv
             end if
         end repeat
 
-        set newPlaylist to make new user playlist with properties {name:playlistName}
+        set targetPlaylistID to ""
+
+        if (count of argv) > 1 then
+            set targetPlaylistID to item 2 of argv
+        end if
+
+        if targetPlaylistID is "" then
+            set newPlaylist to make new user playlist with properties {name:playlistName}
+        else
+            set newPlaylist to first user playlist whose persistent ID is targetPlaylistID
+
+            if (name of newPlaylist) is not playlistName then
+                error "Selected playlist name has changed. Import cancelled."
+            end if
+        end if
 
         repeat with songRecord in songRecords
 
@@ -38,7 +52,15 @@ on run argv
 
                 set existingTrack to first track of library playlist 1 whose persistent ID is trackID
 
-                duplicate existingTrack to newPlaylist
+                if targetPlaylistID is "" then
+                    duplicate existingTrack to newPlaylist
+                else
+                    set matchingTracks to every track of newPlaylist whose persistent ID is trackID
+
+                    if (count of matchingTracks) is 0 then
+                        duplicate existingTrack to newPlaylist
+                    end if
+                end if
 
             else if songInfo starts with "FILE:" then
 

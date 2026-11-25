@@ -8,6 +8,7 @@ from pathlib import Path
 from mutagen import File
 
 from matcher import load_library, find_best_match
+from playlist_manager import find_existing_playlists, get_playlist_track_ids
 
 def clean_youtube_artist(artist):
     if not artist:
@@ -203,6 +204,149 @@ if "--test-matches" in sys.argv:
     print("Test complete. No songs downloaded or imported.")
     sys.exit(0)
 
+# Detect existing Apple Music playlists.
+
+print("Checking for existing Apple Music playlists...")
+
+try:
+    existing_playlists = find_existing_playlists(playlist_name)
+except subprocess.CalledProcessError as error:
+    print("ERROR: Could not check existing playlists.")
+    print(error.stderr or str(error))
+    sys.exit(1)
+
+if existing_playlists:
+    print(f"Found {len(existing_playlists)} existing playlist(s):")
+
+    for playlist in existing_playlists:
+        print(
+            f'  {playlist["name"]} | '
+            f'ID: {playlist["id"]} | '
+            f'Songs: {playlist["song_count"]}'
+        )
+else:
+    print("No existing playlists with this name.")
+
+print()
+
+# Select playlist action.
+
+target_playlist_id = None
+
+if existing_playlists:
+    print("What would you like to do?")
+    print("1. Add missing songs to an existing playlist")
+    print("2. Create a new playlist")
+    print("3. Cancel")
+
+    choice = input("Enter your choice: ").strip()
+
+    if choice == "1":
+        print()
+        print("Select a playlist to update:")
+
+        for index, playlist in enumerate(existing_playlists, 1):
+            print(
+                f'{index}. {playlist["name"]} '
+                f'({playlist["song_count"]} songs) '
+                f'| ID: {playlist["id"]}'
+            )
+
+        selection = input("Select playlist number: ").strip()
+
+        if not selection.isdigit():
+            print("Invalid selection. Import cancelled.")
+            sys.exit(1)
+
+        index = int(selection) - 1
+
+        if not 0 <= index < len(existing_playlists):
+            print("Invalid selection. Import cancelled.")
+            sys.exit(1)
+
+        target_playlist_id = existing_playlists[index]["id"]
+
+        print(f"Selected playlist ID: {target_playlist_id}")
+
+    elif choice == "2":
+        print("Create new playlist selected.")
+
+    elif choice == "3":
+        print("Import cancelled.")
+        sys.exit(0)
+
+    else:
+        print("Invalid choice. Import cancelled.")
+        sys.exit(1)
+
+else:
+    print("A new playlist will be created.")
+
+# Filter songs already present in the selected playlist.
+
+if target_playlist_id:
+    print()
+    print("Checking songs in the selected playlist...")
+
+    try:
+        existing_track_ids = get_playlist_track_ids(target_playlist_id)
+    except subprocess.CalledProcessError as error:
+        print("ERROR: Could not read the selected playlist.")
+        print(error.stderr or str(error))
+        sys.exit(1)
+
+    songs_to_add = []
+    skipped_count = 0
+    duplicate_count = 0
+    seen_track_ids = set()
+    seen_youtube_ids = set()
+
+    for song in youtube_songs:
+        track_id = song.get("apple_music_id")
+        youtube_id = song.get("youtube_id")
+
+        if track_id and track_id in existing_track_ids:
+            print(f'Already in playlist: {song["title"]}')
+            skipped_count += 1
+            continue
+
+        if (
+            (track_id and track_id in seen_track_ids)
+            or (youtube_id and youtube_id in seen_youtube_ids)
+        ):
+            print(f'Duplicate in import: {song["title"]}')
+            duplicate_count += 1
+            continue
+
+        songs_to_add.append(song)
+
+        if track_id:
+            seen_track_ids.add(track_id)
+
+        if youtube_id:
+            seen_youtube_ids.add(youtube_id)
+
+        print(f'To be added: {song["title"]}')
+
+    print(f"Repeated songs skipped: {duplicate_count}")
+
+    youtube_songs = songs_to_add
+
+    print()
+    print(f"Songs already in playlist: {skipped_count}")
+    print(f"New songs to add: {len(youtube_songs)}")
+    print(f"Songs requiring download: {sum(s["download"] for s in youtube_songs)}")
+
+# Finish early when the selected playlist is already up to date.
+
+if target_playlist_id and not youtube_songs:
+    print()
+    print("Playlist is already up to date!")
+    print("No songs needed to be added.")
+    print("No changes were made to Apple Music.")
+    sys.exit(0)
+
+
 # Identify original playlist positions that need downloading.
 # Verify original playlist positions before downloading.
 for song in youtube_songs:
@@ -362,11 +506,16 @@ print("Sending to Apple Music...")
 
 script_path = Path(__file__).parent / "music_import.applescript"
 
-result = subprocess.run([
+import_command = [
     "osascript",
     str(script_path),
     str(playlist_json)
-])
+]
+
+if target_playlist_id:
+    import_command.append(target_playlist_id)
+
+result = subprocess.run(import_command)
 
 if result.returncode == 0:
     print("Finished successfully!")
