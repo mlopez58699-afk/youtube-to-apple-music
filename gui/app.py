@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter.scrolledtext import ScrolledText
+import re
 import subprocess
 import threading
 import queue
@@ -15,7 +16,11 @@ events = queue.Queue()
 running = False
 
 
+ANSI_PATTERN = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
 def append_log(text):
+    text = ANSI_PATTERN.sub("", text)
     log.configure(state="normal")
     log.insert("end", text)
     log.see("end")
